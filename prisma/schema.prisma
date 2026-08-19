@@ -1,0 +1,221 @@
+// ══════════════════════════════════════════════════════════════════════
+// LLM-Cost-Guard — 开源内核数据模型（单租户，本地部署，无账号系统）
+// ══════════════════════════════════════════════════════════════════════
+//
+// [SAAS] 闭源增值占位（仅注释，开源内核绝不实现）：
+// 1) 多租户隔离：新增 model Tenant { id plan createdAt }，下列业务表各增加
+//    tenantId String 及 @@index([tenantId, ...]) 复合索引；
+// 2) 账号 / 团队协作：model User / Membership / Invite（邮箱登录、RBAC、邀请入组）；
+// 3) 云端模型价格库自动更新：model ModelPriceVersion { provider model currency
+//    input cachedInput output effectiveAt } 定时同步官方价格，替代内置静态表
+//    src/lib/pricing/prices.ts，并支持租户级价格覆盖；
+// 4) 高级告警：model AlertRule / EscalationPolicy / OnCallSchedule
+//    （多渠道聚合、告警升级、短信/企业微信、值班轮转、静默期）；
+// 5) 高级报表：月度对账单、留存策略、发票导出。
+// ══════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+  // 自定义输出路径：Prisma 6 推荐做法，Next standalone 产物追踪更可靠
+  output = "../src/generated/prisma"
+  // native = 开发机（Windows/macOS/Linux）；debian-openssl-3.0.x = 生产镜像（node:22-bookworm-slim）
+  // 若生产镜像改用 alpine，需追加 "linux-musl-openssl-3.0.x"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── 枚举 ────────────────────────────────────────────────────────────
+
+/// 上游模型厂商。CUSTOM = 任意自建 OpenAI 兼容网关（项目里填 baseUrl）
+enum Provider {
+  DEEPSEEK
+  GLM
+  QWEN
+  OPENAI
+  CUSTOM
+}
+
+/// 环境标签：区分测试 / 生产，用于成本归因
+enum Environment {
+  TEST
+  PROD
+}
+
+/// 模型原生计价货币（随单价一起快照落库）
+enum Currency {
+  CNY
+  USD
+}
+
+/// 项目月度预算的币种
+enum BudgetCurrency {
+  CNY
+  USD
+}
+
+/// 单次调用在网关侧的最终状态
+enum UsageStatus {
+  SUCCESS
+  UPSTREAM_ERROR
+  CLIENT_ABORTED
+  /// 被预算熔断拦截（未转发上游，cost = 0）
+  BLOCKED
+}
+
+// [SAAS] 高级告警类型占位：ESCALATION / ONCALL / DAILY_DIGEST ...
+enum AlertType {
+  BUDGET_80
+  BUDGET_100
+  BURST
+}
+
+enum AlertStatus {
+  SENT
+  FAILED
+  /// 未配置任何告警渠道，事件仅入库（界面上可见"漏发"原因）
+  SKIPPED_NO_CHANNEL
+}
+
+// ─── 业务模型 ────────────────────────────────────────────────────────
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+
+  environment Environment @default(TEST)
+  provider    Provider
+  /// CUSTOM 必填；其余留空则使用 src/lib/gateway/provider.ts 内置 baseURL
+  baseUrl     String?
+
+  /// 上游厂商 API Key 的 AES-256-GCM 密文（格式 v1:<iv>:<tag>:<ct>）。
+  /// ★安全约束：任何 API / 页面只回显 upstreamKeyMask，密文永不解密外传。
+  upstreamKeyEncrypted String
+  /// 掩码预览（如 sk-a***z），保存时一次性生成
+  upstreamKeyMask String
+
+  /// 该项目允许调用的模型 id 白名单（代理层对未授权模型返回 403）
+  allowedModels String[]
+
+  /// 月度预算；null = 不限额（只统计，不熔断）
+  monthlyBudget  Decimal        ? @db.Decimal(14, 2)
+  budgetCurrency BudgetCurrency @default(CNY)
+
+  /// 停用后拒绝该项目所有代理请求
+  isEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  keys        ProjectKey[]
+  usageLogs   UsageLog[]
+  alertEvents AlertEvent[]
+
+  // [SAAS] tenantId String? / ownerId / 团队权限字段
+
+  @@index([isEnabled])
+}
+
+/// 项目代理虚拟 API Key（cgk_ 前缀），一个项目可有多把（便于轮换 / 吊销）。
+/// ★安全约束：明文只在创建响应里出现一次；数据库仅存 sha256 哈希，绝不存明文。
+model ProjectKey {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String    @default("default")
+  /// sha256(明文 key)
+  keyHash   String    @unique
+  /// 展示用掩码（如 cgk-ab12…wxyz）
+  keyMask   String
+  lastUsedAt DateTime?
+  /// false = 已吊销
+  isEnabled  Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  usageLogs UsageLog[]
+
+  @@index([projectId])
+}
+
+/// 单次调用明细 —— 账单审计的核心表。
+/// ★设计原则：单价与汇率在请求时刻快照落库，价格表 / 汇率后续调整不改写历史账。
+model UsageLog {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keyId     String?
+  key       ProjectKey? @relation(fields: [keyId], references: [id], onDelete: SetNull)
+
+  provider  Provider
+  model     String
+  streaming Boolean
+  status    UsageStatus
+  /// 上游返回码（BLOCKED 时为本网关返回码）
+  httpStatus  Int?
+  /// 错误摘要（截断存储；不存请求内容 —— 全链路 trace 不是本内核的边界）
+  errorDetail String?
+
+  promptTokens     Int     @default(0)
+  /// DeepSeek prompt_cache_hit_tokens（缓存命中部分按更低价格计费）
+  cachedTokens     Int     @default(0)
+  completionTokens Int     @default(0)
+  totalTokens      Int     @default(0)
+  /// true = 上游未返回 usage，按字符数粗估（±50% 量级误差，见 estimate.ts 注释）
+  tokensEstimated  Boolean @default(false)
+  promptChars      Int?
+  completionChars  Int?
+
+  // ── 计价快照（每百万 token 单价，模型原生货币）──
+  currency             Currency
+  inputPricePerM       Decimal @default(0) @db.Decimal(12, 6)
+  /// 缓存命中输入价（不支持缓存折扣的模型 = 0）
+  cachedInputPricePerM Decimal @default(0) @db.Decimal(12, 6)
+  outputPricePerM      Decimal @default(0) @db.Decimal(12, 6)
+
+  // ── 双币种成本（请求时刻按当前汇率换算快照）──
+  costCny    Decimal @default(0) @db.Decimal(16, 8)
+  costUsd    Decimal @default(0) @db.Decimal(16, 8)
+  /// 记账所用 USD→CNY 汇率快照（审计可还原原生金额）
+  rateUsdCny Decimal @db.Decimal(10, 4)
+
+  /// 网关视角总耗时（流式 = 收到响应头 → [DONE]）
+  latencyMs Int
+  /// 首 token / 首字节延迟
+  ttfbMs    Int?
+  clientIp  String?
+
+  /// 冗余日列 "2026-08-18"：Prisma 无 date_trunc，仪表盘按它 groupBy
+  day String
+  /// 冗余月列 "2026-08"：预算熔断 / 阈值告警按它扫描（热路径索引）
+  month String
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([month, projectId])
+  @@index([day])
+  @@index([model])
+  // [SAAS] tenantId。prompt/trace 内容审计属 Langfuse 式功能，本内核明确不做。
+}
+
+/// 告警事件（含推送结果审计）
+model AlertEvent {
+  id        String   @id @default(cuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      AlertType
+  /// 去重键：`${projectId}:${month}:BUDGET_80|BUDGET_100` 或 `${projectId}:BURST:${yyyyMMddHH}`
+  /// 唯一约束即去重机制 —— create 撞唯一键说明本周期已发过，静默跳过（天然并发安全）
+  dedupKey String   @unique
+  status   AlertStatus
+  /// 触发时金额 / 阈值 / 窗口值摘要
+  detail   String?
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  // [SAAS] 高级告警：升级链路状态、重发计数、渠道级投递明细表 DeliveryRecord
+}

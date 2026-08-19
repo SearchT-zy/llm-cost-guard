@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind v4 偏好修正（简洁后台风格）：
+ * v4 的 preflight 把默认边框色从 gray-200 改成了 currentColor，
+ * 后台 UI 大量使用 border 分隔线，恢复为浅灰，避免整站发黑。
+ */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-gray-200);
+  }
+}
