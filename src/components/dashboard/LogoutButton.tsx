@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { IconLogout } from '@/components/ui/icons';
 
 export function LogoutButton({ enabled }: { enabled: boolean }) {
   const router = useRouter();
@@ -19,8 +20,9 @@ export function LogoutButton({ enabled }: { enabled: boolean }) {
     <button
       onClick={onLogout}
       disabled={loading}
-      className="whitespace-nowrap rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
     >
+      <IconLogout className="h-3.5 w-3.5" />
       退出
     </button>
   );

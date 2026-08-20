@@ -78,12 +78,12 @@ export function ProjectFormModal({
   }
 
   const input =
-    'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900';
+    'mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm outline-none transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
   const suggestions = knownModelsByProvider(provider);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-8">
-      <form onSubmit={onSubmit} className="w-full max-w-xl space-y-3 rounded-lg bg-white p-5 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-8 backdrop-blur-sm">
+      <form onSubmit={onSubmit} className="w-full max-w-xl space-y-3 rounded-2xl bg-white p-6 shadow-2xl shadow-slate-900/20">
         <h3 className="text-base font-semibold">{initial ? '编辑项目' : '新建项目'}</h3>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -189,7 +189,7 @@ export function ProjectFormModal({
                       : [...prev.split(/[,，\s]+/).filter(Boolean), m].join(', '),
                   )
                 }
-                className="rounded border border-gray-200 px-1.5 py-0.5 hover:bg-gray-50"
+                className="rounded-full border border-gray-200 px-2 py-0.5 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
               >
                 + {m}
               </button>
@@ -229,14 +229,14 @@ export function ProjectFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="btn-ghost"
           >
             取消
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            className="btn-primary"
           >
             {saving ? '保存中…' : '保存'}
           </button>

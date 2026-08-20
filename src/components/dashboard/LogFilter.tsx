@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { IconChevronDown } from '@/components/ui/icons';
 
 /** 调用明细筛选条：项目 / 模型 / 状态 / 日期范围（提交后写 URL，服务端重取） */
 export function LogFilter({ projects }: { projects: Array<{ id: string; name: string }> }) {
@@ -23,23 +24,25 @@ export function LogFilter({ projects }: { projects: Array<{ id: string; name: st
   }
 
   const input =
-    'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700 outline-none focus:border-gray-900';
+    'h-9 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-sm text-gray-700 shadow-sm outline-none transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
+
+  const label = 'relative inline-flex w-full';
 
   return (
-    <form onSubmit={onSubmit} className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-      <select
-        name="projectId"
-        defaultValue={sp.get('projectId') ?? ''}
-        className={input}
-        aria-label="项目"
-      >
-        <option value="">全部项目</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+    <form onSubmit={onSubmit} className="grid grid-cols-2 gap-2.5 md:flex md:flex-wrap md:items-center">
+      <label className={label}>
+        <select name="projectId" defaultValue={sp.get('projectId') ?? ''} className={`${input} appearance-none pr-8`} aria-label="项目">
+          <option value="">全部项目</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+          <IconChevronDown />
+        </span>
+      </label>
       <input
         name="model"
         value={model}
@@ -47,31 +50,24 @@ export function LogFilter({ projects }: { projects: Array<{ id: string; name: st
         placeholder="模型名"
         className={input}
       />
-      <select name="status" defaultValue={sp.get('status') ?? ''} className={input} aria-label="状态">
-        <option value="">全部状态</option>
-        <option value="SUCCESS">成功</option>
-        <option value="UPSTREAM_ERROR">上游错误</option>
-        <option value="CLIENT_ABORTED">客户端中断</option>
-        <option value="BLOCKED">已拦截</option>
-      </select>
-      <input
-        type="date"
-        name="from"
-        defaultValue={sp.get('from') ?? ''}
-        className={input}
-        aria-label="开始日期"
-      />
-      <input
-        type="date"
-        name="to"
-        defaultValue={sp.get('to') ?? ''}
-        className={input}
-        aria-label="结束日期"
-      />
-      <div className="col-span-2 flex gap-2 sm:col-span-1">
+      <label className={label}>
+        <select name="status" defaultValue={sp.get('status') ?? ''} className={`${input} appearance-none pr-8`} aria-label="状态">
+          <option value="">全部状态</option>
+          <option value="SUCCESS">成功</option>
+          <option value="UPSTREAM_ERROR">上游错误</option>
+          <option value="CLIENT_ABORTED">客户端中断</option>
+          <option value="BLOCKED">已拦截</option>
+        </select>
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+          <IconChevronDown />
+        </span>
+      </label>
+      <input type="date" name="from" defaultValue={sp.get('from') ?? ''} className={input} aria-label="开始日期" />
+      <input type="date" name="to" defaultValue={sp.get('to') ?? ''} className={input} aria-label="结束日期" />
+      <div className="col-span-2 flex gap-2 md:col-span-1">
         <button
           type="submit"
-          className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-medium text-white shadow-md shadow-indigo-500/25 transition-all hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98]"
         >
           筛选
         </button>
@@ -81,7 +77,7 @@ export function LogFilter({ projects }: { projects: Array<{ id: string; name: st
             setModel('');
             router.push('/dashboard/logs');
           }}
-          className="rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          className="btn-ghost h-9"
         >
           重置
         </button>

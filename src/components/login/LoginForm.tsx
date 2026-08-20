@@ -36,7 +36,7 @@ export function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] backdrop-blur"
     >
       <label htmlFor="password" className="block text-sm font-medium text-gray-700">
         管理密码
@@ -48,14 +48,14 @@ export function LoginForm() {
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+        className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm shadow-sm outline-none transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         placeholder="ADMIN_PASSWORD 环境变量设置的密码"
       />
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={loading || password === ''}
-        className="mt-4 w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="btn-primary mt-4 w-full py-2.5"
       >
         {loading ? '登录中…' : '登录'}
       </button>

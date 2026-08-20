@@ -28,26 +28,20 @@ export function ApiKeyOnceDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
-        <h3 className="text-base font-semibold">{title ?? '虚拟 API Key 已创建'}</h3>
-        <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl shadow-slate-900/25">
+        <h3 className="text-base font-semibold text-gray-900">{title ?? '虚拟 API Key 已创建'}</h3>
+        <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3.5 py-2.5 text-sm leading-relaxed text-red-700">
           ⚠️ 明文仅显示这一次，关闭后无法再查看（数据库只存哈希）。请立即复制保存到安全位置。
         </p>
-        <code className="mt-3 block overflow-x-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm">
+        <code className="mt-4 block overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 font-mono text-sm text-gray-800 select-all">
           {apiKey}
         </code>
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            onClick={copy}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-          >
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={copy} className="btn-primary">
             {copied ? '✓ 已复制' : '复制'}
           </button>
-          <button
-            onClick={onClose}
-            className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-          >
+          <button onClick={onClose} className="btn-ghost">
             我已保存，关闭
           </button>
         </div>
